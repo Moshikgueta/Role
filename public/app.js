@@ -213,41 +213,59 @@
   }
 
   // Mapa base: OpenFreeMap (vetorial, gratuito, sem chave de API; o CARTO passou a exigir),
-  // com as cores trocadas para lembrar o Google Maps.
+  // com as cores trocadas para imitar o Google Maps atual (ruas cinza-claro, sem contorno).
   // Se o navegador não tiver WebGL ou o estilo não carregar, usa os tiles do OpenStreetMap.
   const MAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
   const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
   const MAP_COLORS = {
-    land: "#f5f5f3",
-    urban: "#f0f1f3",
-    park: "#c3ecb2",
-    green: "#d4efc8",
-    hospital: "#fbe4e3",
-    school: "#eef1e6",
-    water: "#aadaff",
-    building: "#e8e9ec",
-    buildingLine: "#dcdde1",
-    road: "#ffffff",
-    roadCasing: "#dadce0",
-    highway: "#fde293",
-    highwayCasing: "#f3c35a",
-    rail: "#c7cace",
+    land: "#f6f6f8",
+    commercial: "#fcf1d9",
+    park: "#c8ebbd",
+    green: "#d6efcc",
+    hospital: "#fde5e5",
+    school: "#eef0f6",
+    water: "#9fd3fb",
+    building: "#ececef",
+    buildingLine: "#e2e3e8",
+    road: "#dde2e8",
+    majorRoad: "#d3d9e1",
+    highway: "#c5cfdb",
+    path: "#e3e6ea",
+    rail: "#c8cdd4",
     text: "#5f6368",
     placeText: "#3c4043",
-    waterText: "#4a7fbf",
+    waterText: "#3f7fc4",
+    // Nomes de lugares coloridos por categoria, como no Google.
+    poiFood: "#e8710a",
+    poiHealth: "#d93025",
+    poiPark: "#188038",
+    poiShop: "#1a73e8",
   };
+
+  // Troca o nome em inglês (name_en) pelo nome local, para aparecer "Praça da Espanha".
+  function localNames(expr) {
+    if (!Array.isArray(expr)) return expr;
+    if (expr[0] === "get" && expr[1] === "name_en") return ["get", "name"];
+    return expr.map(localNames);
+  }
 
   function googleLook(style) {
     const C = MAP_COLORS;
     const hide = (l) => { l.layout = Object.assign(l.layout || {}, { visibility: "none" }); };
+    const poiColor = ["match", ["get", "class"],
+      ["restaurant", "fast_food", "cafe", "bar", "beer", "ice_cream", "bakery"], C.poiFood,
+      ["hospital", "doctors", "dentist", "pharmacy"], C.poiHealth,
+      ["park", "garden", "playground", "zoo"], C.poiPark,
+      ["shop", "grocery", "clothing_store", "jewelry", "furniture", "florist", "books", "shoes", "music", "gift"], C.poiShop,
+      C.text];
     for (const l of style.layers) {
       const id = l.id;
       const sl = l["source-layer"];
       const p = (l.paint = l.paint || {});
+      if (l.layout && l.layout["text-field"]) l.layout["text-field"] = localNames(l.layout["text-field"]);
       if (id === "background") p["background-color"] = C.land;
-      else if (id === "natural_earth" || id === "park_outline") hide(l);
+      else if (id === "natural_earth" || id === "park_outline" || id === "landuse_residential") hide(l);
       else if (id === "park") Object.assign(p, { "fill-color": C.park, "fill-opacity": 1, "fill-outline-color": C.park });
-      else if (id === "landuse_residential") p["fill-color"] = C.urban;
       else if (id === "landcover_wood" || id === "landcover_grass") Object.assign(p, { "fill-color": C.green, "fill-opacity": 1 });
       else if (/^landuse_(pitch|track|cemetery)$/.test(id)) p["fill-color"] = C.green;
       else if (id === "landuse_hospital") p["fill-color"] = C.hospital;
@@ -257,16 +275,32 @@
       else if (id === "building") Object.assign(p, { "fill-color": C.building, "fill-outline-color": C.buildingLine });
       else if (id === "building-3d") p["fill-extrusion-color"] = C.building;
       else if (sl === "transportation" && l.type === "line") {
-        if (/path|pedestrian/.test(id)) continue;
-        const highway = /motorway/.test(id);
+        // Contorno e miolo da rua com a mesma cor: rua lisa, sem borda, como no Google.
         if (/rail/.test(id)) p["line-color"] = C.rail;
-        else if (/casing/.test(id)) p["line-color"] = highway ? C.highwayCasing : C.roadCasing;
-        else p["line-color"] = highway ? C.highway : C.road;
+        else if (/path|pedestrian/.test(id)) p["line-color"] = C.path;
+        else if (/motorway/.test(id)) p["line-color"] = C.highway;
+        else if (/minor|service|street/.test(id)) p["line-color"] = C.road;
+        else p["line-color"] = C.majorRoad;
       } else if (l.type === "symbol" && "text-color" in p) {
-        p["text-color"] = sl === "water_name" || sl === "waterway" ? C.waterText : sl === "place" ? C.placeText : C.text;
+        if (sl === "poi" && id !== "poi_transit") {
+          p["text-color"] = poiColor;
+          l.layout["text-font"] = ["Noto Sans Regular"];
+        } else {
+          p["text-color"] = sl === "water_name" || sl === "waterway" ? C.waterText : sl === "place" ? C.placeText : C.text;
+        }
         p["text-halo-color"] = "#ffffff";
       }
     }
+    // Áreas comerciais em amarelo-claro (o estilo original não tem essa camada).
+    const at = style.layers.findIndex((l) => l.id === "landuse_residential");
+    style.layers.splice(at + 1, 0, {
+      id: "landuse_commercial",
+      type: "fill",
+      source: "openmaptiles",
+      "source-layer": "landuse",
+      filter: ["match", ["get", "class"], ["commercial", "retail"], true, false],
+      paint: { "fill-color": C.commercial },
+    });
     return style;
   }
 
