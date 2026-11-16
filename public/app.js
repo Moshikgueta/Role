@@ -206,11 +206,22 @@
     if (map) return;
     map = L.map("map", { zoomControl: false }).setView(CENTER, 17);
     // Tiles do OpenStreetMap (não exigem chave de API; o CARTO passou a exigir).
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    // Se vários tiles falharem, troca para o mapa da Esri, que também não exige chave.
+    const osm = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 20,
       maxNativeZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);
+    let tileErrors = 0;
+    osm.on("tileerror", () => {
+      if (++tileErrors !== 4) return;
+      map.removeLayer(osm);
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
+        maxZoom: 20,
+        maxNativeZoom: 19,
+        attribution: "Tiles &copy; Esri",
+      }).addTo(map);
+    });
     markersLayer = L.layerGroup().addTo(map);
     liveLayer = L.layerGroup().addTo(map);
     renderMarkers();
