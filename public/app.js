@@ -205,9 +205,11 @@
   function initMap() {
     if (map) return;
     map = L.map("map", { zoomControl: false }).setView(CENTER, 17);
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+    // Tiles do OpenStreetMap (não exigem chave de API; o CARTO passou a exigir).
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 20,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+      maxNativeZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);
     markersLayer = L.layerGroup().addTo(map);
     liveLayer = L.layerGroup().addTo(map);
