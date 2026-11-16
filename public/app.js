@@ -213,37 +213,38 @@
   }
 
   // Mapa base: OpenFreeMap (vetorial, gratuito, sem chave de API; o CARTO passou a exigir),
-  // com o estilo próprio do Rolê: mapa escuro com as avenidas em amarelo.
+  // com o estilo próprio do Rolê: mapa claro com as avenidas em amarelo.
   // Se o navegador não tiver WebGL ou o estilo não carregar, usa os tiles do OpenStreetMap.
   const MAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
   const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
   const MAP_COLORS = {
-    land: "#16171b",
-    commercial: "#1d1c19",
-    park: "#17301f",
-    green: "#152a1c",
-    hospital: "#2a1a1c",
-    school: "#1b1c22",
-    water: "#0f2638",
-    building: "#22242a",
-    buildingLine: "#2a2c33",
-    road: "#2c2e35",        // ruas comuns
-    service: "#24262c",     // ruelas e acessos
-    avenue: "#d9ae1c",      // avenidas: o amarelo do Rolê
-    avenueCasing: "#4d3e12", // borda das avenidas
-    highway: "#f5c842",     // rodovias e contornos: amarelo mais forte
-    path: "#222429",
-    rail: "#3a3c44",
-    halo: "#16171b",
-    text: "#8d939c",
-    roadText: "#b3b8bf",
-    placeText: "#e4e6e9",
-    waterText: "#5d8fb5",
-    // Lugares coloridos por categoria; bares e baladas em destaque no amarelo do Rolê.
-    poiNight: "#f5c842",
-    poiFood: "#f08a3c",
-    poiHealth: "#e57373",
-    poiPark: "#66bb7f",
+    land: "#fafafa",
+    commercial: "#fbf3e1",
+    park: "#cdeec2",
+    green: "#dcf2d2",
+    hospital: "#fde7e7",
+    school: "#f0f1f6",
+    water: "#a8d8f8",
+    building: "#ececef",
+    buildingLine: "#e1e2e6",
+    road: "#e3e6ea",         // ruas comuns: cinza-claro
+    service: "#eceef1",      // ruelas e acessos
+    avenue: "#f7d154",       // avenidas: amarelo do Rolê
+    avenueCasing: "#d9ae1c", // borda das avenidas: o amarelo forte da marca
+    highway: "#f3c12a",      // rodovias e contornos
+    path: "#e6e8ec",
+    rail: "#c8cdd4",
+    boundary: "#c0c4ca",
+    halo: "#ffffff",
+    text: "#6b7078",
+    roadText: "#5f6368",
+    placeText: "#33363b",
+    waterText: "#3f7fc4",
+    // Lugares coloridos por categoria; bares e baladas em destaque no dourado do Rolê.
+    poiNight: "#a87b00",
+    poiFood: "#e8710a",
+    poiHealth: "#d93025",
+    poiPark: "#188038",
   };
 
   // Troca o nome em inglês (name_en) pelo nome local, para aparecer "Praça da Espanha".
@@ -287,22 +288,21 @@
       else if (sl === "waterway" && l.type === "line") p["line-color"] = C.water;
       else if (id === "building") Object.assign(p, { "fill-color": C.building, "fill-outline-color": C.buildingLine });
       else if (sl === "aeroway" && l.type === "line") p["line-color"] = C.road;
-      else if (id === "road_area_pattern") hide(l); // padrão claro de calçadão, destoa no escuro
+      else if (id === "road_area_pattern") hide(l); // padrão de calçadão, polui o mapa
       else if (sl === "transportation" && l.type === "line") {
         // Contorno e miolo com a mesma cor: linha lisa, sem borda.
         if (/rail/.test(id)) p["line-color"] = C.rail;
         else if (/path|pedestrian/.test(id)) p["line-color"] = C.path;
         else if (/service|track/.test(id)) p["line-color"] = C.service;
         else if (/minor|street/.test(id)) p["line-color"] = C.road;
-        // Avenidas e rodovias: contorno mostarda escuro e miolo amarelo, largas sem ficar pesadas.
+        // Avenidas e rodovias: borda amarelo-forte e miolo amarelo-claro.
         else if (/casing/.test(id)) p["line-color"] = C.avenueCasing;
         else p["line-color"] = /motorway/.test(id) ? C.highway : C.avenue; // link, secondary/tertiary, trunk/primary
       } else if (sl === "boundary") {
-        p["line-color"] = "#3a3c44";
+        p["line-color"] = C.boundary;
       } else if (l.type === "symbol" && "text-color" in p) {
         if (sl === "poi") {
-          // Os ícones do estilo original são escuros e somem no mapa escuro:
-          // no lugar deles, um pontinho colorido antes do nome.
+          // No lugar dos ícones do estilo original, um pontinho colorido antes do nome.
           delete l.layout["icon-image"];
           l.layout["text-field"] = ["concat", "\u2022 ", l.layout["text-field"]];
           l.filter = ["all", l.filter, ["!", ["match", ["get", "class"], SHOPS, true, false]]];

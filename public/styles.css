@@ -150,10 +150,7 @@ textarea.input { height: auto; padding: 14px 18px; resize: none; }
 .avatar-xl svg { width: 36px; height: 36px; }
 
 /* ---------- Mapa ---------- */
-#map { position: absolute; inset: 0; background: #16171b; z-index: 0; }
-/* Crédito do mapa no tom escuro do mapa do Rolê */
-#map .leaflet-control-attribution { background: rgba(22, 23, 27, .75); color: #8d939c; }
-#map .leaflet-control-attribution a { color: #d9ae1c; }
+#map { position: absolute; inset: 0; background: #fafafa; z-index: 0; }
 .leaflet-control-attribution { font-size: 10px; }
 .leaflet-control-zoom { display: none; }
 
