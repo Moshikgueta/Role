@@ -240,11 +240,6 @@
     roadText: "#5f6368",
     placeText: "#33363b",
     waterText: "#3f7fc4",
-    // Lugares coloridos por categoria; bares e baladas em destaque no dourado do Rolê.
-    poiNight: "#a87b00",
-    poiFood: "#e8710a",
-    poiHealth: "#d93025",
-    poiPark: "#188038",
   };
 
   // Troca o nome em inglês (name_en) pelo nome local, para aparecer "Praça da Espanha".
@@ -257,16 +252,6 @@
   function roleLook(style) {
     const C = MAP_COLORS;
     const hide = (l) => { l.layout = Object.assign(l.layout || {}, { visibility: "none" }); };
-    const poiColor = ["match", ["get", "class"],
-      ["bar", "beer", "nightclub", "music", "theatre", "cinema"], C.poiNight,
-      ["restaurant", "fast_food", "cafe", "ice_cream", "bakery"], C.poiFood,
-      ["hospital", "doctors", "dentist", "pharmacy"], C.poiHealth,
-      ["park", "garden", "playground", "zoo"], C.poiPark,
-      C.text];
-    // Lojas ficam de fora: o Rolê é sobre sair, e elas lotam o mapa nas áreas comerciais.
-    const SHOPS = ["shop", "grocery", "clothing_store", "jewelry", "furniture", "florist", "books", "shoes", "gift",
-      "alcohol_shop", "art_gallery", "car", "hairdresser", "laundry", "optician", "mobile_phone", "electronics",
-      "hardware", "toys", "sports", "pet", "stationery", "bicycle", "beauty", "computer", "deli", "fashion"];
     for (const l of style.layers) {
       const id = l.id;
       const sl = l["source-layer"];
@@ -275,8 +260,9 @@
       if (id === "background") p["background-color"] = C.land;
       // Menos poluição: sem prédios em 3D, sem setas de mão única, sem fundo de relevo.
       else if (/^(natural_earth|park_outline|landuse_residential|building-3d|road_one_way_arrow.*)$/.test(id)) hide(l);
-      // Pontos de ônibus só aparecem bem de perto.
-      else if (id === "poi_transit") { l.minzoom = 17; Object.assign(p, { "text-color": C.text, "text-halo-color": C.halo }); }
+      // Sem nomes de lugares (bares, lojas, pontos de ônibus...): os dados do mapa gratuito ficam
+      // desatualizados, e no Rolê o que importa são os check-ins, que aparecem como pins.
+      else if (sl === "poi") hide(l);
       else if (id === "park") Object.assign(p, { "fill-color": C.park, "fill-opacity": 1, "fill-outline-color": C.park });
       else if (id === "landcover_wood" || id === "landcover_grass") Object.assign(p, { "fill-color": C.green, "fill-opacity": 1 });
       else if (/^landuse_(pitch|track|cemetery)$/.test(id)) p["fill-color"] = C.green;
@@ -301,16 +287,7 @@
       } else if (sl === "boundary") {
         p["line-color"] = C.boundary;
       } else if (l.type === "symbol" && "text-color" in p) {
-        if (sl === "poi") {
-          // No lugar dos ícones do estilo original, um pontinho colorido antes do nome.
-          delete l.layout["icon-image"];
-          l.layout["text-field"] = ["concat", "\u2022 ", l.layout["text-field"]];
-          l.filter = ["all", l.filter, ["!", ["match", ["get", "class"], SHOPS, true, false]]];
-          l.layout["text-font"] = ["Noto Sans Regular"];
-          l.layout["text-anchor"] = "center";
-          l.layout["text-offset"] = [0, 0];
-          p["text-color"] = poiColor;
-        } else if (sl === "transportation_name") {
+        if (sl === "transportation_name") {
           p["text-color"] = C.roadText;
         } else {
           p["text-color"] = sl === "water_name" || sl === "waterway" ? C.waterText : sl === "place" ? C.placeText : C.text;
