@@ -264,7 +264,10 @@
       const p = (l.paint = l.paint || {});
       if (l.layout && l.layout["text-field"]) l.layout["text-field"] = localNames(l.layout["text-field"]);
       if (id === "background") p["background-color"] = C.land;
-      else if (id === "natural_earth" || id === "park_outline" || id === "landuse_residential") hide(l);
+      // Menos poluição: sem prédios em 3D, sem setas de mão única, sem fundo de relevo.
+      else if (/^(natural_earth|park_outline|landuse_residential|building-3d|road_one_way_arrow.*)$/.test(id)) hide(l);
+      // Pontos de ônibus só aparecem bem de perto, como no Google.
+      else if (id === "poi_transit") { l.minzoom = 17; p["text-color"] = C.text; p["text-halo-color"] = "#ffffff"; }
       else if (id === "park") Object.assign(p, { "fill-color": C.park, "fill-opacity": 1, "fill-outline-color": C.park });
       else if (id === "landcover_wood" || id === "landcover_grass") Object.assign(p, { "fill-color": C.green, "fill-opacity": 1 });
       else if (/^landuse_(pitch|track|cemetery)$/.test(id)) p["fill-color"] = C.green;
@@ -273,7 +276,6 @@
       else if (id === "water") p["fill-color"] = C.water;
       else if (sl === "waterway" && l.type === "line") p["line-color"] = C.water;
       else if (id === "building") Object.assign(p, { "fill-color": C.building, "fill-outline-color": C.buildingLine });
-      else if (id === "building-3d") p["fill-extrusion-color"] = C.building;
       else if (sl === "transportation" && l.type === "line") {
         // Contorno e miolo da rua com a mesma cor: rua lisa, sem borda, como no Google.
         if (/rail/.test(id)) p["line-color"] = C.rail;
