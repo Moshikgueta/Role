@@ -213,33 +213,37 @@
   }
 
   // Mapa base: OpenFreeMap (vetorial, gratuito, sem chave de API; o CARTO passou a exigir),
-  // com as cores trocadas para imitar o Google Maps atual (ruas cinza-claro, sem contorno).
+  // com o estilo próprio do Rolê: mapa escuro com as avenidas em amarelo.
   // Se o navegador não tiver WebGL ou o estilo não carregar, usa os tiles do OpenStreetMap.
   const MAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
   const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
   const MAP_COLORS = {
-    land: "#f6f6f8",
-    commercial: "#fcf1d9",
-    park: "#c8ebbd",
-    green: "#d6efcc",
-    hospital: "#fde5e5",
-    school: "#eef0f6",
-    water: "#9fd3fb",
-    building: "#ececef",
-    buildingLine: "#e2e3e8",
-    road: "#dde2e8",
-    majorRoad: "#d3d9e1",
-    highway: "#c5cfdb",
-    path: "#e3e6ea",
-    rail: "#c8cdd4",
-    text: "#5f6368",
-    placeText: "#3c4043",
-    waterText: "#3f7fc4",
-    // Nomes de lugares coloridos por categoria, como no Google.
-    poiFood: "#e8710a",
-    poiHealth: "#d93025",
-    poiPark: "#188038",
-    poiShop: "#1a73e8",
+    land: "#16171b",
+    commercial: "#1d1c19",
+    park: "#17301f",
+    green: "#152a1c",
+    hospital: "#2a1a1c",
+    school: "#1b1c22",
+    water: "#0f2638",
+    building: "#22242a",
+    buildingLine: "#2a2c33",
+    road: "#2c2e35",        // ruas comuns
+    service: "#24262c",     // ruelas e acessos
+    avenue: "#d9ae1c",      // avenidas: o amarelo do Rolê
+    avenueCasing: "#4d3e12", // borda das avenidas
+    highway: "#f5c842",     // rodovias e contornos: amarelo mais forte
+    path: "#222429",
+    rail: "#3a3c44",
+    halo: "#16171b",
+    text: "#8d939c",
+    roadText: "#b3b8bf",
+    placeText: "#e4e6e9",
+    waterText: "#5d8fb5",
+    // Lugares coloridos por categoria; bares e baladas em destaque no amarelo do Rolê.
+    poiNight: "#f5c842",
+    poiFood: "#f08a3c",
+    poiHealth: "#e57373",
+    poiPark: "#66bb7f",
   };
 
   // Troca o nome em inglês (name_en) pelo nome local, para aparecer "Praça da Espanha".
@@ -249,15 +253,19 @@
     return expr.map(localNames);
   }
 
-  function googleLook(style) {
+  function roleLook(style) {
     const C = MAP_COLORS;
     const hide = (l) => { l.layout = Object.assign(l.layout || {}, { visibility: "none" }); };
     const poiColor = ["match", ["get", "class"],
-      ["restaurant", "fast_food", "cafe", "bar", "beer", "ice_cream", "bakery"], C.poiFood,
+      ["bar", "beer", "nightclub", "music", "theatre", "cinema"], C.poiNight,
+      ["restaurant", "fast_food", "cafe", "ice_cream", "bakery"], C.poiFood,
       ["hospital", "doctors", "dentist", "pharmacy"], C.poiHealth,
       ["park", "garden", "playground", "zoo"], C.poiPark,
-      ["shop", "grocery", "clothing_store", "jewelry", "furniture", "florist", "books", "shoes", "music", "gift"], C.poiShop,
       C.text];
+    // Lojas ficam de fora: o Rolê é sobre sair, e elas lotam o mapa nas áreas comerciais.
+    const SHOPS = ["shop", "grocery", "clothing_store", "jewelry", "furniture", "florist", "books", "shoes", "gift",
+      "alcohol_shop", "art_gallery", "car", "hairdresser", "laundry", "optician", "mobile_phone", "electronics",
+      "hardware", "toys", "sports", "pet", "stationery", "bicycle", "beauty", "computer", "deli", "fashion"];
     for (const l of style.layers) {
       const id = l.id;
       const sl = l["source-layer"];
@@ -266,34 +274,52 @@
       if (id === "background") p["background-color"] = C.land;
       // Menos poluição: sem prédios em 3D, sem setas de mão única, sem fundo de relevo.
       else if (/^(natural_earth|park_outline|landuse_residential|building-3d|road_one_way_arrow.*)$/.test(id)) hide(l);
-      // Pontos de ônibus só aparecem bem de perto, como no Google.
-      else if (id === "poi_transit") { l.minzoom = 17; p["text-color"] = C.text; p["text-halo-color"] = "#ffffff"; }
+      // Pontos de ônibus só aparecem bem de perto.
+      else if (id === "poi_transit") { l.minzoom = 17; Object.assign(p, { "text-color": C.text, "text-halo-color": C.halo }); }
       else if (id === "park") Object.assign(p, { "fill-color": C.park, "fill-opacity": 1, "fill-outline-color": C.park });
       else if (id === "landcover_wood" || id === "landcover_grass") Object.assign(p, { "fill-color": C.green, "fill-opacity": 1 });
       else if (/^landuse_(pitch|track|cemetery)$/.test(id)) p["fill-color"] = C.green;
       else if (id === "landuse_hospital") p["fill-color"] = C.hospital;
       else if (id === "landuse_school") p["fill-color"] = C.school;
+      else if (id === "landcover_ice" || id === "landcover_sand" || id === "aeroway_fill") Object.assign(p, { "fill-color": C.school, "fill-opacity": 1 });
+      else if (id === "landcover_wetland") hide(l);
       else if (id === "water") p["fill-color"] = C.water;
       else if (sl === "waterway" && l.type === "line") p["line-color"] = C.water;
       else if (id === "building") Object.assign(p, { "fill-color": C.building, "fill-outline-color": C.buildingLine });
+      else if (sl === "aeroway" && l.type === "line") p["line-color"] = C.road;
+      else if (id === "road_area_pattern") hide(l); // padrão claro de calçadão, destoa no escuro
       else if (sl === "transportation" && l.type === "line") {
-        // Contorno e miolo da rua com a mesma cor: rua lisa, sem borda, como no Google.
+        // Contorno e miolo com a mesma cor: linha lisa, sem borda.
         if (/rail/.test(id)) p["line-color"] = C.rail;
         else if (/path|pedestrian/.test(id)) p["line-color"] = C.path;
-        else if (/motorway/.test(id)) p["line-color"] = C.highway;
-        else if (/minor|service|street/.test(id)) p["line-color"] = C.road;
-        else p["line-color"] = C.majorRoad;
+        else if (/service|track/.test(id)) p["line-color"] = C.service;
+        else if (/minor|street/.test(id)) p["line-color"] = C.road;
+        // Avenidas e rodovias: contorno mostarda escuro e miolo amarelo, largas sem ficar pesadas.
+        else if (/casing/.test(id)) p["line-color"] = C.avenueCasing;
+        else p["line-color"] = /motorway/.test(id) ? C.highway : C.avenue; // link, secondary/tertiary, trunk/primary
+      } else if (sl === "boundary") {
+        p["line-color"] = "#3a3c44";
       } else if (l.type === "symbol" && "text-color" in p) {
-        if (sl === "poi" && id !== "poi_transit") {
-          p["text-color"] = poiColor;
+        if (sl === "poi") {
+          // Os ícones do estilo original são escuros e somem no mapa escuro:
+          // no lugar deles, um pontinho colorido antes do nome.
+          delete l.layout["icon-image"];
+          l.layout["text-field"] = ["concat", "\u2022 ", l.layout["text-field"]];
+          l.filter = ["all", l.filter, ["!", ["match", ["get", "class"], SHOPS, true, false]]];
           l.layout["text-font"] = ["Noto Sans Regular"];
+          l.layout["text-anchor"] = "center";
+          l.layout["text-offset"] = [0, 0];
+          p["text-color"] = poiColor;
+        } else if (sl === "transportation_name") {
+          p["text-color"] = C.roadText;
         } else {
           p["text-color"] = sl === "water_name" || sl === "waterway" ? C.waterText : sl === "place" ? C.placeText : C.text;
         }
-        p["text-halo-color"] = "#ffffff";
+        p["text-halo-color"] = C.halo;
+        p["text-halo-width"] = 1.2;
       }
     }
-    // Áreas comerciais em amarelo-claro (o estilo original não tem essa camada).
+    // Áreas comerciais levemente mais quentes (o estilo original não tem essa camada).
     const at = style.layers.findIndex((l) => l.id === "landuse_residential");
     style.layers.splice(at + 1, 0, {
       id: "landuse_commercial",
@@ -358,7 +384,7 @@
         let gl;
         try {
           // O crédito (OpenFreeMap / OpenStreetMap) vem do próprio estilo.
-          gl = L.maplibreGL({ style: googleLook(style) }).addTo(map);
+          gl = L.maplibreGL({ style: roleLook(style) }).addTo(map);
         } catch (e) {
           return useRaster(gl);
         }
