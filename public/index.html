@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.1/dist/maplibre-gl.css" />
-  <link rel="stylesheet" href="styles.css?v=5" />
+  <link rel="stylesheet" href="styles.css?v=6" />
 </head>
 <body>
 <div id="app">
@@ -144,27 +144,47 @@
             <span id="post-handle"></span>
             <button class="follow hidden" id="btn-follow" data-action="follow">Seguir</button>
           </div>
-          <div class="chip chip-time" id="post-time"></div>
-          <div class="badge" id="post-price"></div>
         </div>
         <div class="post-info">
-          <div class="row between">
-            <h3 id="post-title"></h3>
-            <span class="rating" id="post-rating" title="Avaliação de quem postou"><svg><use href="#i-star"/></svg><b></b></span>
+          <div class="post-head">
+            <div class="post-head-text">
+              <h3 id="post-title"></h3>
+              <div class="post-tags">
+                <span class="tag" id="post-type"></span>
+                <span class="tag tag-price" id="post-price"></span>
+              </div>
+            </div>
+            <span class="rating-box" id="post-rating" title="Avaliação de quem postou"><svg><use href="#i-star"/></svg><b></b></span>
           </div>
           <p id="post-description" class="post-desc"></p>
-          <div class="row between">
-            <span class="loc" title="Localização automática (GPS) — não editável"><svg><use href="#i-pin"/></svg><span id="post-location"></span></span>
-            <span class="countdown" id="post-countdown" title="Tempo restante do status"></span>
+          <div class="info-line" title="Localização automática (GPS) — não editável">
+            <span class="info-ico"><svg><use href="#i-pin"/></svg></span>
+            <span id="post-location" class="info-text"></span>
           </div>
-          <div class="row between actions">
-            <div class="icons">
-              <button class="icon-btn" id="btn-like" data-action="like" aria-label="Curtir"><svg><use href="#i-heart"/></svg><span id="like-count"></span></button>
-              <button class="icon-btn" data-action="comments" aria-label="Comentar"><svg><use href="#i-comment"/></svg><span id="comment-count"></span></button>
-              <button class="icon-btn" data-action="share" aria-label="Compartilhar"><svg><use href="#i-share"/></svg></button>
+          <div class="info-line">
+            <span class="info-ico"><svg><use href="#i-clock"/></svg></span>
+            <span class="info-text"><span class="muted small">Postado</span><br><span id="post-posted"></span></span>
+          </div>
+          <div class="stat-row">
+            <button type="button" class="stat stat-dist" id="post-distance" data-action="distance">
+              <span class="stat-label">Distância</span>
+              <b id="post-distance-value">—</b>
+            </button>
+            <div class="stat stat-time" title="Tempo restante do status">
+              <span class="stat-label">Termina em</span>
+              <b id="post-countdown"></b>
             </div>
-            <button class="btn btn-yellow btn-go" data-action="go">Ir até o rolê</button>
           </div>
+          <div class="icons">
+            <button class="icon-btn" id="btn-like" data-action="like" aria-label="Curtir"><svg><use href="#i-heart"/></svg><span id="like-count"></span></button>
+            <button class="icon-btn" data-action="comments" aria-label="Comentar"><svg><use href="#i-comment"/></svg><span id="comment-count"></span></button>
+            <button class="icon-btn" data-action="share" aria-label="Compartilhar"><svg><use href="#i-share"/></svg></button>
+          </div>
+          <div class="go-row">
+            <a id="post-route" class="btn btn-route" target="_blank" rel="noopener"><svg><use href="#i-car"/></svg>Como chegar</a>
+            <a id="post-uber" class="btn btn-uber" target="_blank" rel="noopener">Uber</a>
+          </div>
+          <a id="post-99" class="link-99" href="#">Prefere 99? <b>Pedir 99</b></a>
         </div>
       </article>
     </div>
@@ -254,16 +274,6 @@
       <input id="comment-input" class="input" type="text" placeholder="Comente algo..." maxlength="200" required />
       <button type="submit" class="btn btn-yellow btn-sm">Enviar</button>
     </form>
-  </div>
-
-  <!-- Ir até o rolê -->
-  <div id="sheet-ride" class="sheet">
-    <div class="grabber"></div>
-    <h3>Ir até o rolê</h3>
-    <p id="ride-destination" class="muted"></p>
-    <a id="ride-uber" class="btn ride ride-uber" target="_blank" rel="noopener">Pedir Uber</a>
-    <a id="ride-99" class="btn ride ride-99">Pedir 99</a>
-    <a id="ride-maps" class="btn btn-ghost" target="_blank" rel="noopener">Ver rota no mapa</a>
   </div>
 
   <!-- Check-in -->
@@ -381,6 +391,8 @@
   <symbol id="i-comment" viewBox="0 0 24 24"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4A8 8 0 1 1 20 12z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
   <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.6" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="12" r="2.6" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="19" r="2.6" fill="none" stroke="currentColor" stroke-width="2"/><path d="m8.3 10.7 7.4-4.4m-7.4 7 7.4 4.4" stroke="currentColor" stroke-width="2"/></symbol>
   <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 2.8 2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2 6.4 20.2l1.1-6.3L2.9 9.5l6.3-.9z" fill="currentColor"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-car" viewBox="0 0 24 24"><path d="M5 11l1.6-4.2A2 2 0 0 1 8.5 5.5h7a2 2 0 0 1 1.9 1.3L19 11m-14 0h14a1.5 1.5 0 0 1 1.5 1.5V17h-17v-4.5A1.5 1.5 0 0 1 5 11zm.5 6v1.5m13-1.5v1.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7.5" cy="14" r="1.2" fill="currentColor"/><circle cx="16.5" cy="14" r="1.2" fill="currentColor"/></symbol>
   <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 22s7-6.3 7-12a7 7 0 0 0-14 0c0 5.7 7 12 7 12z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="10" r="2.6" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
   <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
   <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
@@ -393,8 +405,8 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/maplibre-gl@5.24.1/dist/maplibre-gl.js"></script>
 <script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js"></script>
-<script src="config.js?v=5"></script>
-<script src="demo.js?v=5"></script>
-<script src="app.js?v=5"></script>
+<script src="config.js?v=6"></script>
+<script src="demo.js?v=6"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>
