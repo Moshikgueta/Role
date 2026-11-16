@@ -212,10 +212,63 @@
     renderLive();
   }
 
-  // Mapa base: OpenFreeMap (vetorial, gratuito, sem chave de API; o CARTO passou a exigir).
+  // Mapa base: OpenFreeMap (vetorial, gratuito, sem chave de API; o CARTO passou a exigir),
+  // com as cores trocadas para lembrar o Google Maps.
   // Se o navegador não tiver WebGL ou o estilo não carregar, usa os tiles do OpenStreetMap.
   const MAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
   const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+  const MAP_COLORS = {
+    land: "#f5f5f3",
+    urban: "#f0f1f3",
+    park: "#c3ecb2",
+    green: "#d4efc8",
+    hospital: "#fbe4e3",
+    school: "#eef1e6",
+    water: "#aadaff",
+    building: "#e8e9ec",
+    buildingLine: "#dcdde1",
+    road: "#ffffff",
+    roadCasing: "#dadce0",
+    highway: "#fde293",
+    highwayCasing: "#f3c35a",
+    rail: "#c7cace",
+    text: "#5f6368",
+    placeText: "#3c4043",
+    waterText: "#4a7fbf",
+  };
+
+  function googleLook(style) {
+    const C = MAP_COLORS;
+    const hide = (l) => { l.layout = Object.assign(l.layout || {}, { visibility: "none" }); };
+    for (const l of style.layers) {
+      const id = l.id;
+      const sl = l["source-layer"];
+      const p = (l.paint = l.paint || {});
+      if (id === "background") p["background-color"] = C.land;
+      else if (id === "natural_earth" || id === "park_outline") hide(l);
+      else if (id === "park") Object.assign(p, { "fill-color": C.park, "fill-opacity": 1, "fill-outline-color": C.park });
+      else if (id === "landuse_residential") p["fill-color"] = C.urban;
+      else if (id === "landcover_wood" || id === "landcover_grass") Object.assign(p, { "fill-color": C.green, "fill-opacity": 1 });
+      else if (/^landuse_(pitch|track|cemetery)$/.test(id)) p["fill-color"] = C.green;
+      else if (id === "landuse_hospital") p["fill-color"] = C.hospital;
+      else if (id === "landuse_school") p["fill-color"] = C.school;
+      else if (id === "water") p["fill-color"] = C.water;
+      else if (sl === "waterway" && l.type === "line") p["line-color"] = C.water;
+      else if (id === "building") Object.assign(p, { "fill-color": C.building, "fill-outline-color": C.buildingLine });
+      else if (id === "building-3d") p["fill-extrusion-color"] = C.building;
+      else if (sl === "transportation" && l.type === "line") {
+        if (/path|pedestrian/.test(id)) continue;
+        const highway = /motorway/.test(id);
+        if (/rail/.test(id)) p["line-color"] = C.rail;
+        else if (/casing/.test(id)) p["line-color"] = highway ? C.highwayCasing : C.roadCasing;
+        else p["line-color"] = highway ? C.highway : C.road;
+      } else if (l.type === "symbol" && "text-color" in p) {
+        p["text-color"] = sl === "water_name" || sl === "waterway" ? C.waterText : sl === "place" ? C.placeText : C.text;
+        p["text-halo-color"] = "#ffffff";
+      }
+    }
+    return style;
+  }
 
   function addBaseMap() {
     let fellBack = false;
@@ -230,17 +283,33 @@
       }).addTo(map);
     };
     if (!L.maplibreGL) return useRaster();
-    let gl;
-    try {
-      // O crédito (OpenFreeMap / OpenStreetMap) vem do próprio estilo.
-      gl = L.maplibreGL({ style: MAP_STYLE }).addTo(map);
-    } catch (e) {
-      return useRaster(gl);
-    }
-    const glMap = gl.getMaplibreMap();
-    let loaded = false;
-    glMap.once("load", () => { loaded = true; });
-    glMap.on("error", () => { if (!loaded) useRaster(gl); });
+    fetch(MAP_STYLE)
+      .then((r) => { if (!r.ok) throw new Error("estilo " + r.status); return r.json(); })
+      .then((style) => {
+        let gl;
+        try {
+          // O crédito (OpenFreeMap / OpenStreetMap) vem do próprio estilo.
+          gl = L.maplibreGL({ style: googleLook(style) }).addTo(map);
+        } catch (e) {
+          return useRaster(gl);
+        }
+        const glMap = gl.getMaplibreMap();
+        let loaded = false;
+        const fail = (why) => {
+          if (loaded) return;
+          console.warn("Mapa vetorial falhou, usando OpenStreetMap:", why);
+          useRaster(gl);
+        };
+        // Se o estilo não terminar de carregar em 10 s, usa o reserva.
+        const timer = setTimeout(() => fail("demorou demais"), 10000);
+        glMap.once("load", () => { loaded = true; clearTimeout(timer); });
+        glMap.on("error", (e) => {
+          // Um quadradinho do mapa que falha (internet instável) não derruba o mapa todo.
+          if (e && e.tile) return;
+          fail(e && e.error && (e.error.message || e.error));
+        });
+      })
+      .catch(() => useRaster());
   }
 
   function visiblePosts() {
