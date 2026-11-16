@@ -205,27 +205,42 @@
   function initMap() {
     if (map) return;
     map = L.map("map", { zoomControl: false }).setView(CENTER, 17);
-    // Tiles do OpenStreetMap (não exigem chave de API; o CARTO passou a exigir).
-    // Se vários tiles falharem, troca para o mapa da Esri, que também não exige chave.
-    const osm = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 20,
-      maxNativeZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    }).addTo(map);
-    let tileErrors = 0;
-    osm.on("tileerror", () => {
-      if (++tileErrors !== 4) return;
-      map.removeLayer(osm);
-      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
-        maxZoom: 20,
-        maxNativeZoom: 19,
-        attribution: "Tiles &copy; Esri",
-      }).addTo(map);
-    });
+    addBaseMap();
     markersLayer = L.layerGroup().addTo(map);
     liveLayer = L.layerGroup().addTo(map);
     renderMarkers();
     renderLive();
+  }
+
+  // Mapa base: OpenFreeMap (vetorial, gratuito, sem chave de API; o CARTO passou a exigir).
+  // Se o navegador não tiver WebGL ou o estilo não carregar, usa os tiles do OpenStreetMap.
+  const MAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
+  const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+
+  function addBaseMap() {
+    let fellBack = false;
+    const useRaster = (gl) => {
+      if (fellBack) return;
+      fellBack = true;
+      if (gl && map.hasLayer(gl)) map.removeLayer(gl);
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 20,
+        maxNativeZoom: 19,
+        attribution: OSM_ATTRIBUTION,
+      }).addTo(map);
+    };
+    if (!L.maplibreGL) return useRaster();
+    let gl;
+    try {
+      // O crédito (OpenFreeMap / OpenStreetMap) vem do próprio estilo.
+      gl = L.maplibreGL({ style: MAP_STYLE }).addTo(map);
+    } catch (e) {
+      return useRaster(gl);
+    }
+    const glMap = gl.getMaplibreMap();
+    let loaded = false;
+    glMap.once("load", () => { loaded = true; });
+    glMap.on("error", () => { if (!loaded) useRaster(gl); });
   }
 
   function visiblePosts() {
