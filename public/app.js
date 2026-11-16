@@ -410,25 +410,30 @@
     av.onerror = () => av.removeAttribute("src");
     if (p.author.avatar) av.src = p.author.avatar; else av.removeAttribute("src");
     $("#post-handle").textContent = "@" + p.author.handle;
-    $("#post-time").textContent = fmtClock(p.postedAt);
+    $("#post-type").textContent = p.type === "event" ? "Evento" : "Rolê";
     const price = $("#post-price");
-    price.textContent = p.free ? "GRÁTIS" : "PAGO";
+    price.textContent = p.free ? "Grátis" : "Pago";
     price.classList.toggle("paid", !p.free);
     $("#post-title").textContent = p.title;
+    $("#post-posted").textContent = `${fmtClock(p.postedAt)} · ${timeAgo(p.postedAt)}`;
     $("#post-description").textContent = p.description || "";
     $("#post-rating b").textContent = p.rating;
     $("#post-rating").setAttribute("aria-label", `Avaliação de quem postou: ${p.rating} de 5 estrelas`);
     $("#post-location").textContent = p.place;
     updatePostCounts(p);
     updateCountdown();
+    setRideLinks(p);
+    updateDistance();
 
     $("#post-view").classList.add("open");
     $("#post-view").setAttribute("aria-hidden", "false");
 
-    // Posiciona o pin na parte de cima, acima do card
+    // Posiciona o pin no meio da faixa de mapa que fica visível acima do card
     const h = map.getSize().y;
+    const cardH = $("#post-view .post-card").offsetHeight;
+    const target = Math.max(110, h - cardH - 14); // ponta do pin logo acima do card
     map.setView([p.lat, p.lng], Math.max(map.getZoom(), 17), { animate: false });
-    map.panBy([0, h * 0.36], { animate: true });
+    map.panBy([0, h / 2 - target], { animate: true });
   }
 
   function closePost() {
@@ -538,18 +543,47 @@
     } catch { /* cancelado */ }
   }
 
-  function openRide() {
-    const p = findPost(state.selected);
-    if (!p) return;
-    $("#ride-destination").textContent = `${p.title} · ${p.place}`;
-    $("#ride-uber").href =
+  // Botões "Como chegar" (rota no Google Maps / Apple Maps) e "Uber" do card.
+  function setRideLinks(p) {
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    $("#post-route").href = ios
+      ? `https://maps.apple.com/?daddr=${p.lat},${p.lng}&q=${enc(p.title)}`
+      : `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
+    $("#post-uber").href =
       `https://m.uber.com/ul/?action=setPickup&pickup=my_location` +
       `&dropoff[latitude]=${p.lat}&dropoff[longitude]=${p.lng}` +
       `&dropoff[nickname]=${enc(p.title)}&dropoff[formatted_address]=${enc(p.place)}`;
-    Object.assign($("#ride-99").dataset, { lat: p.lat, lng: p.lng, title: p.title });
-    $("#ride-maps").href = `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
-    openSheet("sheet-ride");
+    Object.assign($("#post-99").dataset, { lat: p.lat, lng: p.lng, title: p.title });
   }
+
+  // Distância até o rolê. Usa a última posição conhecida; se o GPS já foi liberado, busca sozinho.
+  function updateDistance() {
+    const p = state.selected && findPost(state.selected);
+    if (!p) return;
+    const el = $("#post-distance-value");
+    if (state.myPos) {
+      el.textContent = fmtDist(distanceKm(state.myPos, [p.lat, p.lng]));
+      $("#post-distance").classList.remove("ask");
+      return;
+    }
+    el.textContent = "Ver";
+    $("#post-distance").classList.add("ask");
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: "geolocation" })
+        .then((r) => { if (r.state === "granted") askDistance(true); })
+        .catch(() => {});
+    }
+  }
+  async function askDistance(quiet) {
+    if (state.myPos) return updateDistance();
+    try {
+      state.myPos = await getPosition();
+      updateDistance();
+    } catch (e) {
+      if (quiet !== true) toast(e.message);
+    }
+  }
+
   function open99(e) {
     e.preventDefault();
     const { lat, lng, title } = e.currentTarget.dataset;
@@ -914,7 +948,7 @@
     like: toggleLike,
     comments: openComments,
     share: sharePost,
-    go: openRide,
+    distance: askDistance,
     "live-settings": openLiveSettings,
     "live-start": () => startLive(false),
     "live-stop": () => { stopLive(); closeSheets(); },
@@ -984,7 +1018,7 @@
 
   $$(".seg").forEach((b) => b.addEventListener("click", () => { state.tab = b.dataset.tab; syncTabs(); closePost(); }));
   $("#search-input").addEventListener("input", (e) => { state.search = e.target.value; renderMarkers(); });
-  $("#ride-99").addEventListener("click", open99);
+  $("#post-99").addEventListener("click", open99);
   $("#comment-form").addEventListener("submit", submitComment);
 
   // Check-in
