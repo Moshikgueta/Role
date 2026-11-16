@@ -306,7 +306,40 @@
     return style;
   }
 
+  // Com chave do Google Maps (config.js), usa o mapa oficial do Google dentro do Leaflet.
+  // Sem chave, ou se o Google falhar, usa o mapa gratuito.
   function addBaseMap() {
+    const key = (window.ROLE_CONFIG || {}).googleMapsKey;
+    if (!key) return addFreeMap();
+    loadGoogleMaps(key)
+      .then(() => {
+        const layer = L.gridLayer.googleMutant({ type: "roadmap", maxZoom: 21 }).addTo(map);
+        window.gm_authFailure = () => { // chave inválida ou endereço não liberado
+          console.warn("Google Maps recusou a chave; usando o mapa gratuito.");
+          map.removeLayer(layer);
+          addFreeMap();
+        };
+      })
+      .catch((e) => { console.warn("Google Maps não carregou:", e); addFreeMap(); });
+  }
+
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = src; s.async = true;
+      s.onload = resolve; s.onerror = () => reject(new Error("falhou: " + src));
+      document.head.appendChild(s);
+    });
+  }
+  function loadGoogleMaps(key) {
+    const api = new Promise((resolve, reject) => {
+      window.__roleGoogleReady = resolve;
+      loadScript(`https://maps.googleapis.com/maps/api/js?key=${enc(key)}&language=pt-BR&region=BR&callback=__roleGoogleReady`).catch(reject);
+    });
+    return Promise.all([api, loadScript("https://unpkg.com/leaflet.gridlayer.googlemutant@0.16.0/dist/Leaflet.GoogleMutant.js")]);
+  }
+
+  function addFreeMap() {
     let fellBack = false;
     const useRaster = (gl) => {
       if (fellBack) return;
